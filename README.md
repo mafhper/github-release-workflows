@@ -23,7 +23,8 @@ on:
   push:
     tags: ["v*"]
 
-permissions: {}
+permissions:
+  contents: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -51,7 +52,7 @@ jobs:
 - Notas editoriais + changelog automático em `<details>`
 - Prerelease detectado por semver
 - Publicação idempotente (rascunho → publica; rerun seguro) e com retry
-- Permissões mínimas: `permissions: {}` no caller, `contents: write` no Core
+- Permissões mínimas: caller concede `contents: write` (token só pode ser rebaixado pelo core, nunca elevado); core mantém `contents: write` como teto
 
 ## Como versionar
 

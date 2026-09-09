@@ -15,8 +15,6 @@ on:
         type: string
         required: false
         default: ''
-    secrets:
-      inherit: true
 
 permissions:
   contents: write
@@ -98,6 +96,7 @@ jobs:
           ' "${{ inputs.matrix }}"
 
       - name: Validar versão da tag contra as fontes canônicas
+        # shellcheck disable=SC2016
         run: |
           args=()
           while IFS= read -r line; do
@@ -109,6 +108,7 @@ jobs:
 
       - name: Derivar versão e tag anterior
         id: versions
+        # shellcheck disable=SC2016
         run: |
           tag="${{ steps.tag.outputs.tag }}"
           version="${tag#v}"; version="${version%%[-+]*}"
