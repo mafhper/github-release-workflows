@@ -1,0 +1,83 @@
+# Workflow de Release (Release Core)
+
+Este repositório fornece o **Release Core**: um protocolo reutilizável de release para o portfólio `mafhper`, consumido como reusable workflow.
+
+Princípio arquitetural:
+
+> O projeto descreve sua distribuição. O Core executa o protocolo de release.
+
+- O consumidor declara **o que construir / como / em quais plataformas / quais artefatos / quais arquivos possuem versão** em `.github/release.config.json`.
+- O Core executa **validação, preparação, gates, build, artefatos, política de imagem, corpo da release, idempotência e publicação**.
+
+É proibido adicionar lógica por projeto ao Core (ex.: `if repository == "mafhper/push_"`). Se isso for necessário, o contrato de configuração está incompleto.
+
+## Consumo
+
+```yaml
+jobs:
+  release:
+    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.0
+    with:
+      matrix: '[{ "os": "ubuntu-latest" }]'
+    secrets: inherit
+```
+
+Sempre fixe a versão imutável (`@v1.0.0`), nunca `@main`. O Core é tratado como uma API de automação: uma mudança que quebra o contrato deve gerar `v2.0.0`.
+
+## Inputs do workflow
+
+| Input | Default | Descrição |
+|---|---|---|
+| `matrix` | `[{"os":"ubuntu-latest"}]` | Células `{ os, ... }` do build. Propriedade do consumidor (ex.: testes multiplataforma, `args` por plataforma). |
+| `config-file` | `.github/release.config.json` | Caminho do contrato de configuração. |
+| `tag` | vazio | Tag a publicar; usado em `workflow_dispatch`. No push de tag, usa `github.ref_name`. A tag deve já existir no repositório. |
+
+Tudo que é conteúdo/construção (ferramentas, versões de toolchain, gates, build, artefatos, imagem, notas, seções) vive no `release.config.json` — o contrato é a fonte única. O único conteúdo executável que não pode estar no arquivo é a matrix (necessária no momento do roteamento do job).
+
+## Topologia interna
+
+```text
+prepare ──► build (matrix, fail-fast: false) ──► finalize
+```
+
+- **prepare** (ubuntu): resolve/valida a tag, exporta a configuração, valida coerência, versão (`package.json` + `versions.files`), política de imagem, calcula `prev_tag`, detecta prerelease e cria/recupera o release **como rascunho** (idempotente, com retry). Se não há build declarado, marca `build_enabled=false`.
+- **build** (1 job por célula da matrix): instala só o necessário (apt/node/bun/rust conforme o contrato), executa gates → pre → build (ou `tauri-action` em projetos desktop), valida e envia artefatos com `--clobber` e retry.
+- **finalize**: remonta o corpo (imagem + título/tagline + notas + seções + changelog em `<details>`), publica o release (`draft=false` e `prerelease` conforme semver) e atesta. Só roda se `prepare` passou e `build` passou ou foi pulado (nunca publica release parcial em caso de falha).
+
+## Fases operacionais
+
+1. **Preparação** — checkout do consumidor (histórico completo) + bootstrap dos scripts do Core (referenciados pela mesma versão consumida via `github.action_ref`).
+2. **Validação** — barata e determinística, antes de qualquer build: config válida → tag válida → versão válida → versões consistentes → package manager coerente.
+3. **Toolchain** — somente o necessário declarado no contrato (`node`, `bun`, `rust`, `apt`).
+4. **Gates / pre / build** — comandos declarativos; o Core não assume Vite, Next, Tauri, npm ou Bun.
+5. **Artefatos** — modelo 0..N: existir → não vazio → validação executavel → rename opcional → upload idempotente.
+6. **Imagem** — hard gate por `major.minor` (configurável por `tag`).
+7. **Corpo da release** — imagem, título, tagline, notas editoriais, seções, changelog automático.
+8. **Publicação** — idempotente e com retry.
+
+## Idempotência e reexecução
+
+- `gh release view` → usa o release existente; senão cria rascunho. Nunca `create` cego.
+- Artefatos reenviados com `--clobber`.
+- O corpo é reaplicado no final via PATCH.
+- Reexecutar o workflow (rerun) não gera `Release already exists`; a partir de `workflow_dispatch` também é possível.
+- `concurrency` com `cancel-in-progress: false` — release não é job descartável.
+
+## Permissões
+
+O caller usa `permissions: {}` e o Core declara `contents: write` explicitamente. Nada de `write-all`.
+
+## Prerelease
+
+Decisão vem do parser de semver: `v1.2.0` → normal; `v1.2.0-beta.1`, `v2.0.0-rc.1` → prerelease.
+
+## CI (fork deste repositório)
+
+- `actionlint` (versão fixa) sobre os workflows.
+- Testes dos helpers (`node --test`) com fixtures web/extension/tauri.
+- Validação do config do próprio dogfood e `shellcheck` do `release-body.sh`.
+
+## Fora do escopo (por projeto)
+
+- CI completo (lint/typecheck/test) continua no consumidor — o Release **adiciona** as verificações específicas de distribuição, não repete o CI.
+- Deploy (GitHub Pages) é responsabilidade distinta; o Core nunca faz deploy.

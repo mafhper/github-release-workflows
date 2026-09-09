@@ -1,0 +1,32 @@
+{
+  "release": {
+    "title": "PersonalNews",
+    "tagline": "Boletim pessoal com aplicativo desktop.",
+    "language": "pt-BR",
+    "image": {
+      "path": "docs/images/releases/release.webp",
+      "required": true,
+      "granularity": "minor"
+    },
+    "notes": {
+      "granularity": "minor"
+    }
+  },
+  "build": {
+    "package_manager": "bun",
+    "node": "24",
+    "bun": "1.x",
+    "rust": "stable",
+    "apt": ["libwebkit2gtk-4.1-dev", "build-essential", "libxdo-dev"]
+  },
+  "desktop": {
+    "enabled": true,
+    "project_path": "."
+  },
+  "versions": {
+    "files": [
+      { "path": "desktop/src-tauri/tauri.conf.json", "format": "json", "field": "version" },
+      { "path": "desktop/src-tauri/Cargo.toml", "format": "toml", "field": "package.version" }
+    ]
+  }
+}

@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  helpers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Testes dos helpers
+        run: node --test tests/
+
+      - name: Validar configuração do dogfood
+        run: |
+          node scripts/release-config.mjs .github/release.config.json >/dev/null
+          node scripts/release-config.mjs .github/release.config.json --get node
+
+      - name: Shellcheck do release-body.sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/release-body.sh
+
+      - name: Smoke test do release-body.sh
+        run: |
+          tmp="$(mktemp -d)"
+          mkdir -p "$tmp/img/releases" "$tmp/.github/release-notes"
+          printf 'placeholder' > "$tmp/img/releases/release.webp"
+          printf 'Nota da linha 1.0.' > "$tmp/.github/release-notes/v1.0.md"
+          cd "$tmp"
+          set -e
+          export REPO=mafhper/demo TAG=v1.0.0 RELEASE_TITLE='Demo' IMAGE_PATH=img/releases/release.webp IMAGE_REQUIRED=true NOTES_GRANULARITY=minor NOTES_DIR=.github/release-notes RELEASE_LANGUAGE=pt-BR
+          bash "$GITHUB_WORKSPACE/scripts/release-body.sh" "$tmp/body.md" >/dev/null 2>&1 || true
+          grep -q 'raw.githubusercontent.com/mafhper/demo/v1.0.0/img/releases/release.webp' "$tmp/body.md"
+          grep -q 'Nota da linha 1.0.' "$tmp/body.md"
+          grep -q '^# Demo' "$tmp/body.md"
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Baixar actionlint (versão fixa)
+        run: |
+          curl -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz -o /tmp/actionlint.tar.gz
+          tar -C /tmp -xzf /tmp/actionlint.tar.gz
+          /tmp/actionlint -ver
+
+      - name: Executar actionlint nos workflows
+        run: /tmp/actionlint -color

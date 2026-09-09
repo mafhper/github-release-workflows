@@ -1,0 +1,31 @@
+{
+  "release": {
+    "title": "Kaes Keid Inspector",
+    "tagline": "Extensão de navegador para inspeção.",
+    "language": "pt-BR",
+    "image": {
+      "path": "docs/images/releases/release.webp",
+      "required": true,
+      "granularity": "minor"
+    },
+    "notes": {
+      "granularity": "tag"
+    }
+  },
+  "build": {
+    "package_manager": "bun",
+    "node": "22",
+    "bun": "1.3.13",
+    "gates": ["bun run lint", "bun run typecheck"],
+    "command": "bun run build"
+  },
+  "artifact": {
+    "enabled": true,
+    "path": "dist/kaes-keid-inspector.zip",
+    "release_name": "kaes-keide-inspector-{version}.zip",
+    "validate": ["unzip -t \"$1\""]
+  },
+  "versions": {
+    "files": [{ "path": "manifest.json", "format": "json", "field": "version" }]
+  }
+}

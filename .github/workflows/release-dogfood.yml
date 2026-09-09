@@ -1,0 +1,26 @@
+name: Release (dogfood)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        required: true
+        description: Tag a publicar (ex.: v1.0.0)
+
+permissions: {}
+
+concurrency:
+  group: release-dogfood
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.0
+    with:
+      matrix: '[{"os":"ubuntu-latest"}]'
+      tag: ${{ inputs.tag }}
+    secrets: inherit

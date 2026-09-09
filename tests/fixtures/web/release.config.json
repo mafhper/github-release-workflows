@@ -1,0 +1,28 @@
+{
+  "release": {
+    "title": "Spread",
+    "tagline": "Aplicação web do portfólio mafhper.",
+    "language": "pt-BR",
+    "image": {
+      "path": "docs/images/releases/release.webp",
+      "required": true,
+      "granularity": "minor"
+    },
+    "notes": {
+      "granularity": "tag"
+    },
+    "sections": {
+      "usage": "## Uso\nAbra em https://mafhper.github.io/spread/ durante o deploy."
+    }
+  },
+  "build": {
+    "package_manager": "bun",
+    "node": "22",
+    "bun": "1.3.13",
+    "gates": ["bun run lint", "bun run typecheck", "bun test"],
+    "command": "bun run build"
+  },
+  "versions": {
+    "files": []
+  }
+}

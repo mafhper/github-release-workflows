@@ -1,0 +1,372 @@
+name: Release Core
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        type: string
+        required: false
+        default: '[{"os":"ubuntu-latest"}]'
+      config-file:
+        type: string
+        required: false
+        default: '.github/release.config.json'
+      tag:
+        type: string
+        required: false
+        default: ''
+    secrets:
+      inherit: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  REPO: ${{ github.repository }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.versions.outputs.tag }}
+      release_version: ${{ steps.versions.outputs.release_version }}
+      prev_tag: ${{ steps.versions.outputs.prev_tag }}
+      is_prerelease: ${{ steps.versions.outputs.is_prerelease }}
+      release_id: ${{ steps.release.outputs.release_id }}
+      build_enabled: ${{ steps.report.outputs.build_enabled }}
+    steps:
+      - name: Checkout do projeto consumidor (histórico completo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Bootstrap das ferramentas do Release Core
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mafhper/github-release-workflows
+          ref: ${{ github.action_ref || github.sha }}
+          path: .release-tools
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Resolver a tag alvo
+        id: tag
+        run: |
+          tag="${{ inputs.tag }}"
+          if [ -z "$tag" ]; then tag="$GITHUB_REF_NAME"; fi
+          if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::A tag $tag não existe neste repositório."; exit 1
+          fi
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Exportar configuração do projeto
+        run: node "${{ github.workspace }}/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
+
+      - name: Validar coerência da configuração
+        run: |
+          if [ "$DESKTOP" = "true" ]; then
+            if [ -z "$RUST_TOOLCHAIN" ]; then
+              echo "::error::desktop é true, mas build.rust está vazio (Tauri exige Rust)."; exit 1
+            fi
+            if [ -n "$BUILD_COMMAND" ]; then
+              echo "::error::desktop é true e não permite build.command (use tauri-action)."; exit 1
+            fi
+            if [ "$ARTIFACT_ENABLED" = "true" ]; then
+              echo "::error::desktop é true e não permite artifact (tauri-action publica)."; exit 1
+            fi
+          fi
+          if [ -n "$BUN_VERSION" ] && [ "$PKG_MANAGER" != "bun" ]; then
+            echo "::error::build.bun informado, mas build.package_manager não é \"bun\"."; exit 1
+          fi
+
+      - name: Validar matrix
+        run: |
+          node -e '
+            const ok = JSON.parse(process.argv[1]);
+            if (!Array.isArray(ok) || ok.length === 0) throw new Error("matrix precisa ser um array não vazio");
+            for (const cell of ok) if (typeof cell !== "object" || !cell || typeof cell.os !== "string") {
+              throw new Error("cada célula da matrix precisa de um campo os (string)");
+            }
+          ' "${{ inputs.matrix }}"
+
+      - name: Validar versão da tag contra as fontes canônicas
+        run: |
+          args=()
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            IFS='|' read -r fmt path field <<< "$line"
+            args+=("$fmt" "$path" "$field")
+          done <<< "$(printf '%s' "$VERSIONS_FILES" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.map(f=>`${f.format}|${f.path}|${f.field}`).join("\n"))})')"
+          node "${{ github.workspace }}/.release-tools/scripts/check-release-version.mjs" "$TAG" package.json "${args[@]}"
+
+      - name: Derivar versão e tag anterior
+        id: versions
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          version="${tag#v}"; version="${version%%[-+]*}"
+          prerelease_part="$(printf '%s' "$version" | sed -n -E 's/^[0-9]+\.[0-9]+\.[0-9]+-(.+)$/\1/p')"
+          prev_tag="$(git tag --list 'v*' \
+            | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+).*$/\1/' \
+            | sort -V \
+            | awk -v cur="$version" '$1 + 0 < cur + 0 { last=$1 } END { if (last != "") print "v" last }')"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_version=$version" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$([ -n "$prerelease_part" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "prev_tag=$prev_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Validar política da imagem de release
+        run: |
+          if [ "$IMAGE_REQUIRED" = "true" ] && [ ! -f "$IMAGE_PATH" ]; then
+            echo "::error::Imagem de release obrigatória não existe no disco: $IMAGE_PATH"; exit 1
+          fi
+          prev_tag="${{ steps.versions.outputs.prev_tag }}"
+          if [ -n "$prev_tag" ]; then
+            need_change=0
+            case "$IMAGE_GRANULARITY" in
+              tag) need_change=1 ;;
+              minor)
+                cur_line="${{ steps.versions.outputs.release_version }}"; cur_line="${cur_line%.*}"
+                prev_line="$(printf '%s' "$prev_tag" | sed -E 's/^v([0-9]+\.[0-9]+)\..*/\1/')"
+                if [ "$cur_line" != "$prev_line" ]; then need_change=1; fi
+                ;;
+            esac
+            if [ "$need_change" = "1" ] && ! git diff --name-only "$prev_tag".."$GITHUB_SHA" -- "$IMAGE_PATH" | grep -q .; then
+              echo "::error::A imagem de release precisa mudar entre $prev_tag e ${{ steps.tag.outputs.tag }} (granularidade $IMAGE_GRANULARITY)."; exit 1
+            fi
+          fi
+
+      - name: Criar ou recuperar o release (rascunho, idempotente)
+        id: release
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          prerelease="${{ steps.versions.outputs.is_prerelease }}"
+          prerelease_flag=""
+          if [ "$prerelease" = "true" ]; then prerelease_flag="--prerelease"; fi
+          release_id=""
+          for attempt in 1 2 3 4 5; do
+            release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id' 2>/dev/null || true)"
+            if [ -z "$release_id" ]; then
+              release_id="$(gh release create "$tag" --repo "$REPO" --draft $prerelease_flag --title "$RELEASE_TITLE" --notes "" --json id -q '.id' 2>/dev/null || true)"
+            fi
+            if [ -n "$release_id" ]; then break; fi
+            if [ "$attempt" -lt 5 ]; then
+              echo "Aguardando o release ficar disponível (tentativa $attempt)..."
+              sleep 10
+            fi
+          done
+          if [ -z "$release_id" ]; then
+            echo "::error::Não foi possível criar ou recuperar o release da tag $tag."; exit 1
+          fi
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          gh release view "$tag" --repo "$REPO" --json id -q '"release \(.id)"'
+
+      - name: Relatar topologia do build
+        id: report
+        run: |
+          if [ -n "$BUILD_COMMAND" ] || [ "$GATES" != "[]" ] || [ "$PRE_STEPS" != "[]" ] || [ "$ARTIFACT_ENABLED" = "true" ] || [ "$DESKTOP" = "true" ]; then
+            echo "build_enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.build_enabled == 'true' }}
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+    strategy:
+      matrix: ${{ fromJSON(inputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout do projeto consumidor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Bootstrap das ferramentas do Release Core
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mafhper/github-release-workflows
+          ref: ${{ github.action_ref || github.sha }}
+          path: .release-tools
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Exportar configuração do projeto
+        run: node "${{ github.workspace }}/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
+
+      - name: Instalar dependências de sistema
+        if: env.APT_DEPS != '[]' && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          printf '%s' "$APT_DEPS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.map(JSON.stringify).join(" "))})' | xargs sudo apt-get install -y
+
+      - name: Preparar Node.js
+        if: env.NODE_VERSION != ''
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Preparar Bun
+        if: env.BUN_VERSION != ''
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Preparar toolchain Rust (desktop/Tauri)
+        if: env.DESKTOP == 'true'
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Portões de qualidade
+        if: env.GATES != '[]'
+        working-directory: ${{ env.DESKTOP_PROJECT_PATH }}
+        run: |
+          printf '%s' "$GATES" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})' | while IFS= read -r -d '' cmd; do
+            echo "» $cmd"
+            bash -eu -c "$cmd"
+          done
+
+      - name: Passos de preparação
+        if: env.PRE_STEPS != '[]'
+        working-directory: ${{ env.DESKTOP_PROJECT_PATH }}
+        run: |
+          printf '%s' "$PRE_STEPS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})' | while IFS= read -r -d '' cmd; do
+            echo "» $cmd"
+            bash -eu -c "$cmd"
+          done
+
+      - name: Compilar o aplicativo
+        if: env.DESKTOP != 'true' && env.BUILD_COMMAND != ''
+        working-directory: ${{ env.DESKTOP_PROJECT_PATH }}
+        run: bash -eu -c "$BUILD_COMMAND"
+
+      - name: Compilar e publicar instaladores (Tauri)
+        if: env.DESKTOP == 'true'
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+        with:
+          projectPath: ${{ env.DESKTOP_PROJECT_PATH }}
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseId: ${{ needs.prepare.outputs.release_id }}
+          releaseDraft: true
+          prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+          args: ${{ matrix.args }}
+
+      - name: Validar e publicar artefatos
+        if: env.DESKTOP != 'true' && env.ARTIFACT_ENABLED == 'true'
+        run: |
+          files=()
+          while IFS= read -r -d '' g; do
+            for f in $g; do files+=("$f"); done
+          done < <(printf '%s' "$ARTIFACT_GLOBS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})')
+          while IFS= read -r -d '' p; do
+            if [ ! -f "$p" ]; then
+              echo "::error::Artefato explícito ausente: $p"; exit 1
+            fi
+            files+=("$p")
+          done < <(printf '%s' "$ARTIFACT_PATHS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::artifact habilitado, mas nenhum arquivo foi encontrado (path/globs)."; exit 1
+          fi
+          for f in "${files[@]}"; do
+            if [ ! -s "$f" ]; then echo "::error::Artefato vazio: $f"; exit 1; fi
+          done
+          if [ "$ARTIFACT_VALIDATE" != "[]" ]; then
+            while IFS= read -r -d '' cmd; do
+              for f in "${files[@]}"; do
+                echo "» validando $f: $cmd"
+                bash -eu -c "$cmd" _ "$(pwd)/$f"
+              done
+            done < <(printf '%s' "$ARTIFACT_VALIDATE" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})')
+          fi
+          if [ -n "$ARTIFACT_RELEASE_NAME" ]; then
+            if [ "${#files[@]}" -ne 1 ]; then
+              echo "::error::artifact.release_name exige exatamente um arquivo, mas foram encontrados ${#files[@]}."; exit 1
+            fi
+            version="$TAG"; version="${version#v}"; version="${version%%[-+]*}"
+            target="${ARTIFACT_RELEASE_NAME//\{version\}/$version}"
+            mkdir -p "$(dirname "$target")"
+            mv "${files[0]}" "$target"
+            files=("$target")
+          fi
+          attempt=1
+          until gh release upload "$TAG" --repo "$REPO" --clobber "${files[@]}"; do
+            if [ "$attempt" -ge 3 ]; then
+              echo "::error::Falha ao enviar artefatos após $attempt tentativas."; exit 1
+            fi
+            echo "Reenviando artefatos (tentativa $((attempt + 1)))..."
+            attempt=$((attempt + 1))
+            sleep 5
+          done
+          echo "Artefatos publicados: ${files[*]}"
+
+  finalize:
+    needs: [prepare, build]
+    if: ${{ always() && needs.prepare.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+    steps:
+      - name: Checkout do projeto consumidor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Bootstrap das ferramentas do Release Core
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mafhper/github-release-workflows
+          ref: ${{ github.action_ref || github.sha }}
+          path: .release-tools
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Exportar configuração do projeto
+        run: node "${{ github.workspace }}/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
+
+      - name: Montar corpo do release
+        id: body
+        run: |
+          bash "${{ github.workspace }}/.release-tools/scripts/release-body.sh" "$RUNNER_TEMP/release-body.md"
+
+      - name: Publicar o release
+        run: |
+          tag="${{ needs.prepare.outputs.tag }}"
+          prerelease="${{ needs.prepare.outputs.is_prerelease }}"
+          payload="$(mktemp)"
+          jq -n \
+            --arg name "$RELEASE_TITLE" \
+            --rawfile body "$RUNNER_TEMP/release-body.md" \
+            --argjson pre "$prerelease" \
+            '{draft:false, name:$name, body:$body, prerelease:$pre}' > "$payload"
+          release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id')"
+          attempt=1
+          until gh api -X PATCH "repos/$REPO/releases/$release_id" --input "$payload"; do
+            if [ "$attempt" -ge 5 ]; then
+              echo "::error::Falha ao publicar o release após $attempt tentativas."; exit 1
+            fi
+            echo "Repetindo publicação (tentativa $((attempt + 1)))..."
+            attempt=$((attempt + 1))
+            sleep 5
+            release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id' 2>/dev/null || true)"
+            if [ -z "$release_id" ]; then
+              echo "::error::Release $tag não encontrado para publicação."; exit 1
+            fi
+          done
+          echo "Release $tag publicado."
+
+      - name: Atestar release publicado
+        run: |
+          gh release view "$TAG" --repo "$REPO" --json isDraft,name -q '.name as $n | if .isDraft then (error("release ainda em rascunho")) else ("publicado: "+$n) end'

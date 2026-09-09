@@ -1,0 +1,66 @@
+# Build and Generated Files
+dist/
+.astro/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Logs and Debugging
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment Variables and Secrets
+.env
+.env.*
+!.env.example
+
+# OS and IDE Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Quality and Performance Reports
+performance-reports/*
+lighthouse*.json
+lighthouse-report.json
+test-lighthouse.json
+audit-root.json
+REAL_REPORT.json
+.report.html
+.lighthouseci
+
+# Internal Development and Documentation
+_dev/
+conductor/
+.gemini/
+.gemini-clipboard/
+GEMINI.md
+.codex/
+.agents/
+AGENTS.md
+
+# Codex local private files
+.dev/
+.claude/
+.qwen/
+.kimi/
+
+# Codex local private files
+.roo/
+.cursor/
+.windsurf/
+.claude-code/
+CLAUDE.md
+QWEN.md
+KIMI.md
+
+# Local visual validation artifacts
+output/
+output-*.png
