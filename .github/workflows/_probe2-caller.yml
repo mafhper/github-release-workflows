@@ -1,0 +1,14 @@
+name: Probe2 caller
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  call:
+    uses: mafhper/github-release-workflows/.github/workflows/_probe2-callee.yml@main
+    with:
+      matrix: '[{"os":"ubuntu-latest"}]'
+      tag: v1.0.0
