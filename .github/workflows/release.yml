@@ -45,14 +45,12 @@ jobs:
           persist-credentials: false
 
       - name: Bootstrap das ferramentas do Release Core
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: mafhper/github-release-workflows
-          ref: ${{ github.action_ref || github.sha }}
-          path: .release-tools
-          fetch-depth: 0
-          fetch-tags: true
-          persist-credentials: false
+        run: |
+          mkdir -p .release-tools
+          git init -q .release-tools
+          git -C .release-tools remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C .release-tools fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
+          git -C .release-tools checkout -q FETCH_HEAD
 
       - name: Resolver a tag alvo
         id: tag
@@ -192,14 +190,12 @@ jobs:
           persist-credentials: false
 
       - name: Bootstrap das ferramentas do Release Core
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: mafhper/github-release-workflows
-          ref: ${{ github.action_ref || github.sha }}
-          path: .release-tools
-          fetch-depth: 0
-          fetch-tags: true
-          persist-credentials: false
+        run: |
+          mkdir -p .release-tools
+          git init -q .release-tools
+          git -C .release-tools remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C .release-tools fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
+          git -C .release-tools checkout -q FETCH_HEAD
 
       - name: Exportar configuração do projeto
         run: node "${{ github.workspace }}/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
@@ -323,14 +319,12 @@ jobs:
           persist-credentials: false
 
       - name: Bootstrap das ferramentas do Release Core
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: mafhper/github-release-workflows
-          ref: ${{ github.action_ref || github.sha }}
-          path: .release-tools
-          fetch-depth: 0
-          fetch-tags: true
-          persist-credentials: false
+        run: |
+          mkdir -p .release-tools
+          git init -q .release-tools
+          git -C .release-tools remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C .release-tools fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
+          git -C .release-tools checkout -q FETCH_HEAD
 
       - name: Exportar configuração do projeto
         run: node "${{ github.workspace }}/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
