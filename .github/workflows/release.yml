@@ -38,14 +38,14 @@ jobs:
       build_enabled: ${{ steps.report.outputs.build_enabled }}
     steps:
       - name: Checkout do projeto consumidor (histórico completo)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
 
       - name: Bootstrap das ferramentas do Release Core
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: mafhper/github-release-workflows
           ref: ${{ github.action_ref || github.sha }}
@@ -187,12 +187,12 @@ jobs:
       fail-fast: false
     steps:
       - name: Checkout do projeto consumidor
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
       - name: Bootstrap das ferramentas do Release Core
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: mafhper/github-release-workflows
           ref: ${{ github.action_ref || github.sha }}
@@ -318,12 +318,12 @@ jobs:
       TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - name: Checkout do projeto consumidor
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
       - name: Bootstrap das ferramentas do Release Core
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: mafhper/github-release-workflows
           ref: ${{ github.action_ref || github.sha }}
