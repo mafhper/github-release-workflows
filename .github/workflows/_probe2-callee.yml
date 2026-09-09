@@ -37,5 +37,15 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
+      - name: Bootstrap das ferramentas do Release Core
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: mafhper/github-release-workflows
+          ref: ${{ github.action_ref || github.sha }}
+          path: .release-tools
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
       - name: Echo
         run: echo "probe2 ok"
