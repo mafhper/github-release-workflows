@@ -146,10 +146,10 @@ jobs:
           if [ "$prerelease" = "true" ]; then prerelease_flag="--prerelease"; fi
           release_id=""
           for attempt in 1 2 3 4 5; do
-            release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id' 2>/dev/null || true)"
+            release_id="$(gh api "repos/$REPO/releases/tags/$tag" --jq '.id' 2>/dev/null || true)"
             if [ -z "$release_id" ]; then
               if gh release create "$tag" --repo "$REPO" --draft $prerelease_flag --title "$RELEASE_TITLE" --notes "" >/dev/null; then
-                release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id' 2>/dev/null || true)"
+                release_id="$(gh api "repos/$REPO/releases/tags/$tag" --jq '.id' 2>/dev/null || true)"
               fi
             fi
             if [ -n "$release_id" ]; then break; fi
@@ -162,7 +162,7 @@ jobs:
             echo "::error::Não foi possível criar ou recuperar o release da tag $tag."; exit 1
           fi
           echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
-          gh release view "$tag" --repo "$REPO" --json id -q '"release \(.id)"'
+          gh api "repos/$REPO/releases/tags/$tag" --jq '"release \(.id)"'
 
       - name: Relatar topologia do build
         id: report
@@ -339,7 +339,7 @@ jobs:
           prerelease="${{ needs.prepare.outputs.is_prerelease }}"
           payload="$RUNNER_TEMP/release-payload.json"
           node -e 'const fs=require("fs");const path=process.env.RUNNER_TEMP+"/release-body.md";const q={draft:false,name:process.env.RELEASE_TITLE,body:fs.readFileSync(path,"utf8"),prerelease:process.argv[1]==="true"};fs.writeFileSync(process.argv[2],JSON.stringify(q));' "$prerelease" "$payload"
-          release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id')"
+          release_id="$(gh api "repos/$REPO/releases/tags/$tag" --jq '.id')"
           attempt=1
           until gh api -X PATCH "repos/$REPO/releases/$release_id" --input "$payload"; do
             if [ "$attempt" -ge 5 ]; then
@@ -348,7 +348,7 @@ jobs:
             echo "Repetindo publicação (tentativa $((attempt + 1)))..."
             attempt=$((attempt + 1))
             sleep 5
-            release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id' 2>/dev/null || true)"
+            release_id="$(gh api "repos/$REPO/releases/tags/$tag" --jq '.id' 2>/dev/null || true)"
             if [ -z "$release_id" ]; then
               echo "::error::Release $tag não encontrado para publicação."; exit 1
             fi
