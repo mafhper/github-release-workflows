@@ -28,7 +28,7 @@ jobs:
           node-version: 22
 
       - name: Testes dos helpers
-        run: node --test tests/
+        run: node --test
 
       - name: Validar configuração do dogfood
         run: |
