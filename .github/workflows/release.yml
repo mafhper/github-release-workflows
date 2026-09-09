@@ -84,14 +84,10 @@ jobs:
           fi
 
       - name: Validar matrix
+        env:
+          MATRIX_INPUT: ${{ inputs.matrix }}
         run: |
-          node -e '
-            const ok = JSON.parse(process.argv[1]);
-            if (!Array.isArray(ok) || ok.length === 0) throw new Error("matrix precisa ser um array não vazio");
-            for (const cell of ok) if (typeof cell !== "object" || !cell || typeof cell.os !== "string") {
-              throw new Error("cada célula da matrix precisa de um campo os (string)");
-            }
-          ' "${{ inputs.matrix }}"
+          node -e 'const ok = JSON.parse(process.env.MATRIX_INPUT); if (!Array.isArray(ok) || ok.length === 0) throw new Error("matrix precisa ser um array não vazio"); for (const cell of ok) if (typeof cell !== "object" || !cell || typeof cell.os !== "string") throw new Error("cada célula da matrix precisa de um campo os (string)");'
 
       - name: Validar versão da tag contra as fontes canônicas
         run: |
