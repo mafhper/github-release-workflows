@@ -148,7 +148,9 @@ jobs:
           for attempt in 1 2 3 4 5; do
             release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id' 2>/dev/null || true)"
             if [ -z "$release_id" ]; then
-              release_id="$(gh release create "$tag" --repo "$REPO" --draft $prerelease_flag --title "$RELEASE_TITLE" --notes "" --json id -q '.id' || true)"
+              if gh release create "$tag" --repo "$REPO" --draft $prerelease_flag --title "$RELEASE_TITLE" --notes "" >/dev/null; then
+                release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id' 2>/dev/null || true)"
+              fi
             fi
             if [ -n "$release_id" ]; then break; fi
             if [ "$attempt" -lt 5 ]; then
