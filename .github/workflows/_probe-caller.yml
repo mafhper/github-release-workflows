@@ -1,0 +1,11 @@
+name: Probe caller
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  call:
+    uses: mafhper/github-release-workflows/.github/workflows/_probe-callee.yml@main
