@@ -67,7 +67,7 @@ jobs:
         run: |
           curl -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz -o /tmp/actionlint.tar.gz
           tar -C /tmp -xzf /tmp/actionlint.tar.gz
-          /tmp/actionlint -ver
+          /tmp/actionlint -version
 
       - name: Executar actionlint nos workflows
         run: /tmp/actionlint -color
