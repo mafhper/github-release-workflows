@@ -15,7 +15,8 @@ on:
   push:
     tags: ["v*"]
 
-permissions: {}
+permissions:
+  contents: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -31,7 +32,6 @@ jobs:
           { "os": "windows-latest", "args": "--bundles nsis,msi" },
           { "os": "macos-latest",   "args": "--bundles dmg" }
         ]
-    secrets: inherit
 ```
 
 Cada célula é um job de build (fail-fast desativado). `args` é repassado ao `tauri-action`; campos extras (ex.: `arch`) podem ser adicionados à célula.

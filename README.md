@@ -35,7 +35,6 @@ jobs:
     uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.0
     with:
       matrix: '[{"os":"ubuntu-latest"}]'
-    secrets: inherit
 ```
 
 2. Configure `.github/release.config.json` — [contrato completo](docs/config-schema.md).

@@ -15,7 +15,8 @@ on:
   push:
     tags: ["v*"]
 
-permissions: {}
+permissions:
+  contents: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -26,7 +27,6 @@ jobs:
     uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.0
     with:
       matrix: '[{"os":"ubuntu-latest"}]'
-    secrets: inherit
 ```
 
 ## `release.config.json`

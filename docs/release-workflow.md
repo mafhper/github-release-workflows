@@ -17,9 +17,10 @@ Princípio arquitetural:
 jobs:
   release:
     uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.0
+    permissions:
+      contents: write
     with:
       matrix: '[{ "os": "ubuntu-latest" }]'
-    secrets: inherit
 ```
 
 Sempre fixe a versão imutável (`@v1.0.0`), nunca `@main`. O Core é tratado como uma API de automação: uma mudança que quebra o contrato deve gerar `v2.0.0`.
@@ -46,7 +47,7 @@ prepare ──► build (matrix, fail-fast: false) ──► finalize
 
 ## Fases operacionais
 
-1. **Preparação** — checkout do consumidor (histórico completo) + bootstrap dos scripts do Core (referenciados pela mesma versão consumida via `github.action_ref`).
+1. **Preparação** — checkout do consumidor (histórico completo) + bootstrap dos scripts do Core referenciados pela mesma versão consumida (`github.action_ref`); o bootstrap usa `git fetch` em `run:`, pois um `actions/checkout` auto-referencial (o próprio repositório do Core) quebra a materialização das actions do arquivo ("not our ref").
 2. **Validação** — barata e determinística, antes de qualquer build: config válida → tag válida → versão válida → versões consistentes → package manager coerente.
 3. **Toolchain** — somente o necessário declarado no contrato (`node`, `bun`, `rust`, `apt`).
 4. **Gates / pre / build** — comandos declarativos; o Core não assume Vite, Next, Tauri, npm ou Bun.
@@ -57,7 +58,7 @@ prepare ──► build (matrix, fail-fast: false) ──► finalize
 
 ## Idempotência e reexecução
 
-- `gh release view` → usa o release existente; senão cria rascunho. Nunca `create` cego.
+- Resolve o release existente pela listagem (`releases?per_page=100`, filtrando `tag_name`) e o reusa; senão cria rascunho. Nunca `create` cego. (Detalhes de implementação: `GET /releases/tags/{tag}` devolve 404 enquanto o draft está em estado "untagged-…", e `gh release view --json id` retorna o **GraphQL id**, que o PATCH REST rejeita — por isso o id numérico vem da REST.)
 - Artefatos reenviados com `--clobber`.
 - O corpo é reaplicado no final via PATCH.
 - Reexecutar o workflow (rerun) não gera `Release already exists`; a partir de `workflow_dispatch` também é possível.
@@ -65,7 +66,7 @@ prepare ──► build (matrix, fail-fast: false) ──► finalize
 
 ## Permissões
 
-O caller usa `permissions: {}` e o Core declara `contents: write` explicitamente. Nada de `write-all`.
+O GITHUB_TOKEN passado do caller ao workflow chamado só pode ser **rebaixado** (nunca elevado). Portanto o caller precisa declarar `permissions: contents: write` e o Core declara `contents: write` como teto (mínimo necessário para criar/publicar a release). `secrets: inherit` não é necessário (o Core não usa secrets). Nada de `write-all`.
 
 ## Prerelease
 
