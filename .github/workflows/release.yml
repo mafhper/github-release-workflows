@@ -97,13 +97,11 @@ jobs:
 
       - name: Validar versão da tag contra as fontes canônicas
         run: |
-          # shellcheck disable=SC2016
           args=()
-          while IFS= read -r line; do
-            [ -n "$line" ] || continue
-            IFS='|' read -r fmt path field <<< "$line"
+          while IFS= read -r -d '' d; do
+            IFS='|' read -r fmt path field <<< "$d"
             args+=("$fmt" "$path" "$field")
-          done <<< "$(printf '%s' "$VERSIONS_FILES" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.map(f=>`${f.format}|${f.path}|${f.field}`).join("\n"))})')"
+          done < <(printf '%s' "$VERSIONS_FILES" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.map(f=>[f.format,f.path,f.field].join("|")).join("\0"))})')
           node "${{ github.workspace }}/.release-tools/scripts/check-release-version.mjs" "$TAG" package.json "${args[@]}"
 
       - name: Derivar versão e tag anterior
@@ -346,12 +344,8 @@ jobs:
         run: |
           tag="${{ needs.prepare.outputs.tag }}"
           prerelease="${{ needs.prepare.outputs.is_prerelease }}"
-          payload="$(mktemp)"
-          jq -n \
-            --arg name "$RELEASE_TITLE" \
-            --rawfile body "$RUNNER_TEMP/release-body.md" \
-            --argjson pre "$prerelease" \
-            '{draft:false, name:$name, body:$body, prerelease:$pre}' > "$payload"
+          payload="$RUNNER_TEMP/release-payload.json"
+          node -e 'const fs=require("fs");const path=process.env.RUNNER_TEMP+"/release-body.md";const q={draft:false,name:process.env.RELEASE_TITLE,body:fs.readFileSync(path,"utf8"),prerelease:process.argv[1]==="true"};fs.writeFileSync(process.argv[2],JSON.stringify(q));' "$prerelease" "$payload"
           release_id="$(gh release view "$tag" --repo "$REPO" --json id -q '.id')"
           attempt=1
           until gh api -X PATCH "repos/$REPO/releases/$release_id" --input "$payload"; do
@@ -370,5 +364,4 @@ jobs:
 
       - name: Atestar release publicado
         run: |
-          # shellcheck disable=SC2016
-          gh release view "$TAG" --repo "$REPO" --json isDraft,name -q '.name as $n | if .isDraft then (error("release ainda em rascunho")) else ("publicado: "+$n) end'
+          gh release view "$TAG" --repo "$REPO" --json isDraft,name -q 'if .isDraft then error("release ainda em rascunho") else ("publicado: " + .name) end'
