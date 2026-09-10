@@ -1,6 +1,6 @@
 {
   "name": "@mafhper/github-release-workflows",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Release Core reutilizável e configuravel do portfolio mafhper.",
   "scripts": {

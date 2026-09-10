@@ -182,7 +182,8 @@ jobs:
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
     strategy:
-      matrix: ${{ fromJSON(inputs.matrix) }}
+      matrix:
+        include: ${{ fromJSON(inputs.matrix) }}
       fail-fast: false
     steps:
       - name: Checkout do projeto consumidor
