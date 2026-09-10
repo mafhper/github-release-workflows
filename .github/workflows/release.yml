@@ -49,7 +49,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/.release-tools"
           git init -q "$RUNNER_TEMP/.release-tools"
-          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/release-core.git
           git -C "$RUNNER_TEMP/.release-tools" fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
           git -C "$RUNNER_TEMP/.release-tools" checkout -q FETCH_HEAD
 
@@ -195,7 +195,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/.release-tools"
           git init -q "$RUNNER_TEMP/.release-tools"
-          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/release-core.git
           git -C "$RUNNER_TEMP/.release-tools" fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
           git -C "$RUNNER_TEMP/.release-tools" checkout -q FETCH_HEAD
 
@@ -334,7 +334,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/.release-tools"
           git init -q "$RUNNER_TEMP/.release-tools"
-          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/release-core.git
           git -C "$RUNNER_TEMP/.release-tools" fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
           git -C "$RUNNER_TEMP/.release-tools" checkout -q FETCH_HEAD
 
@@ -351,7 +351,7 @@ jobs:
           tag="${{ needs.prepare.outputs.tag }}"
           prerelease="${{ needs.prepare.outputs.is_prerelease }}"
           payload="$RUNNER_TEMP/release-payload.json"
-          node -e 'const fs=require("fs");const path=process.env.RUNNER_TEMP+"/release-body.md";const q={draft:false,name:process.env.RELEASE_TITLE,body:fs.readFileSync(path,"utf8"),prerelease:process.argv[1]==="true"};fs.writeFileSync(process.argv[2],JSON.stringify(q));' "$prerelease" "$payload"
+          node -e 'const fs=require("fs");const path=process.env.RUNNER_TEMP+"/release-body.md";const q={draft:false,name:process.env.RELEASE_TITLE+" "+process.env.TAG,body:fs.readFileSync(path,"utf8"),prerelease:process.argv[1]==="true"};fs.writeFileSync(process.argv[2],JSON.stringify(q));' "$prerelease" "$payload"
           release_id="$(gh api "repos/$REPO/releases?per_page=100" --jq ".[] | select(.tag_name == \"$tag\") | .id" 2>/dev/null | head -n 1)"
           attempt=1
           until gh api -X PATCH "repos/$REPO/releases/$release_id" --input "$payload"; do

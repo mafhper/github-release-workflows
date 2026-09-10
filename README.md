@@ -1,8 +1,8 @@
 # Release Core
 
-[![CI](https://github.com/mafhper/github-release-workflows/actions/workflows/ci.yml/badge.svg)](https://github.com/mafhper/github-release-workflows/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/tag/mafhper/github-release-workflows?sort=semver&label=release)](https://github.com/mafhper/github-release-workflows/releases)
-[![Licença](https://img.shields.io/github/license/mafhper/github-release-workflows)](LICENSE)
+[![CI](https://github.com/mafhper/release-core/actions/workflows/ci.yml/badge.svg)](https://github.com/mafhper/release-core/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/tag/mafhper/release-core?sort=semver&label=release)](https://github.com/mafhper/release-core/releases)
+[![Licença](https://img.shields.io/github/license/mafhper/release-core)](LICENSE)
 
 **Release Core** é um protocolo de release reutilizável para GitHub Actions. Um único workflow — consumido como reusable workflow — entrega releases verificadas, idempotentes e publicadas de forma consistente para aplicações **web**, **extensões de navegador** e **aplicações desktop (Tauri)**, sem duplicar lógica entre repositórios.
 
@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   release:
-    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.4
+    uses: mafhper/release-core/.github/workflows/release.yml@v1.0.5
     with:
       matrix: '[{"os":"ubuntu-latest"}]'
 ```
