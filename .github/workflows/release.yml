@@ -240,7 +240,7 @@ jobs:
         if: env.GATES != '[]'
         working-directory: ${{ env.DESKTOP_PROJECT_PATH }}
         run: |
-          printf '%s' "$GATES" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})' | while IFS= read -r -d '' cmd; do
+          printf '%s' "$GATES" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);process.stdout.write(v.join("\u0000") + "\0")})' | while IFS= read -r -d '' cmd; do
             echo "» $cmd"
             bash -eu -c "$cmd"
           done
@@ -249,7 +249,7 @@ jobs:
         if: env.PRE_STEPS != '[]'
         working-directory: ${{ env.DESKTOP_PROJECT_PATH }}
         run: |
-          printf '%s' "$PRE_STEPS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})' | while IFS= read -r -d '' cmd; do
+          printf '%s' "$PRE_STEPS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);process.stdout.write(v.join("\u0000") + "\0")})' | while IFS= read -r -d '' cmd; do
             echo "» $cmd"
             bash -eu -c "$cmd"
           done
@@ -276,13 +276,13 @@ jobs:
           files=()
           while IFS= read -r -d '' g; do
             for f in $g; do files+=("$f"); done
-          done < <(printf '%s' "$ARTIFACT_GLOBS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})')
+          done < <(printf '%s' "$ARTIFACT_GLOBS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);process.stdout.write(v.join("\u0000") + "\0")})')
           while IFS= read -r -d '' p; do
             if [ ! -f "$p" ]; then
               echo "::error::Artefato explícito ausente: $p"; exit 1
             fi
             files+=("$p")
-          done < <(printf '%s' "$ARTIFACT_PATHS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})')
+          done < <(printf '%s' "$ARTIFACT_PATHS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);process.stdout.write(v.join("\u0000") + "\0")})')
           if [ "${#files[@]}" -eq 0 ]; then
             echo "::error::artifact habilitado, mas nenhum arquivo foi encontrado (path/globs)."; exit 1
           fi
@@ -295,7 +295,7 @@ jobs:
                 echo "» validando $f: $cmd"
                 bash -eu -c "$cmd" _ "$(pwd)/$f"
               done
-            done < <(printf '%s' "$ARTIFACT_VALIDATE" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.join("\u0000"))})')
+            done < <(printf '%s' "$ARTIFACT_VALIDATE" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);process.stdout.write(v.join("\u0000") + "\0")})')
           fi
           if [ -n "$ARTIFACT_RELEASE_NAME" ]; then
             if [ "${#files[@]}" -ne 1 ]; then
