@@ -1,5 +1,9 @@
 # Release Core
 
+<p align="center">
+  <img src="docs/images/logo/icon-512.png" alt="Release Core" width="160">
+</p>
+
 [![CI](https://github.com/mafhper/release-core/actions/workflows/ci.yml/badge.svg)](https://github.com/mafhper/release-core/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/tag/mafhper/release-core?sort=semver&label=release)](https://github.com/mafhper/release-core/releases)
 [![Licença](https://img.shields.io/github/license/mafhper/release-core)](LICENSE)
@@ -90,7 +94,8 @@ docs/
 ├── release-workflow.md
 ├── config-schema.md
 ├── archetypes/{web,extension,tauri}.md
-└── images/releases/release.webp
+├── images/releases/release.webp
+└── images/logo/icon-{256,512,1024}.png
 scripts/
 ├── release-config.mjs
 ├── check-release-version.mjs
