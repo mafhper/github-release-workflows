@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   release:
-    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.3
+    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.4
     with:
       matrix: '[{"os":"ubuntu-latest"}]'
       tag: ${{ inputs.tag }}

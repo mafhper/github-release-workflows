@@ -47,11 +47,11 @@ jobs:
 
       - name: Bootstrap das ferramentas do Release Core
         run: |
-          mkdir -p .release-tools
-          git init -q .release-tools
-          git -C .release-tools remote add origin https://github.com/mafhper/github-release-workflows.git
-          git -C .release-tools fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
-          git -C .release-tools checkout -q FETCH_HEAD
+          mkdir -p "$RUNNER_TEMP/.release-tools"
+          git init -q "$RUNNER_TEMP/.release-tools"
+          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C "$RUNNER_TEMP/.release-tools" fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
+          git -C "$RUNNER_TEMP/.release-tools" checkout -q FETCH_HEAD
 
       - name: Resolver a tag alvo
         id: tag
@@ -65,7 +65,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Exportar configuração do projeto
-        run: node "${{ github.workspace }}/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
+        run: node "$RUNNER_TEMP/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
 
       - name: Validar coerência da configuração
         run: |
@@ -97,7 +97,7 @@ jobs:
             IFS='|' read -r fmt path field <<< "$d"
             args+=("$fmt" "$path" "$field")
           done < <(printf '%s' "$VERSIONS_FILES" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);console.log(v.map(f=>[f.format,f.path,f.field].join("|")).join("\0"))})')
-          node "${{ github.workspace }}/.release-tools/scripts/check-release-version.mjs" "$TAG" package.json "${args[@]}"
+          node "$RUNNER_TEMP/.release-tools/scripts/check-release-version.mjs" "$TAG" package.json "${args[@]}"
 
       - name: Derivar versão e tag anterior
         id: versions
@@ -193,14 +193,14 @@ jobs:
 
       - name: Bootstrap das ferramentas do Release Core
         run: |
-          mkdir -p .release-tools
-          git init -q .release-tools
-          git -C .release-tools remote add origin https://github.com/mafhper/github-release-workflows.git
-          git -C .release-tools fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
-          git -C .release-tools checkout -q FETCH_HEAD
+          mkdir -p "$RUNNER_TEMP/.release-tools"
+          git init -q "$RUNNER_TEMP/.release-tools"
+          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C "$RUNNER_TEMP/.release-tools" fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
+          git -C "$RUNNER_TEMP/.release-tools" checkout -q FETCH_HEAD
 
       - name: Exportar configuração do projeto
-        run: node "${{ github.workspace }}/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
+        run: node "$RUNNER_TEMP/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
 
       - name: Instalar dependências de sistema
         if: env.APT_DEPS != '[]' && runner.os == 'Linux'
@@ -332,19 +332,19 @@ jobs:
 
       - name: Bootstrap das ferramentas do Release Core
         run: |
-          mkdir -p .release-tools
-          git init -q .release-tools
-          git -C .release-tools remote add origin https://github.com/mafhper/github-release-workflows.git
-          git -C .release-tools fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
-          git -C .release-tools checkout -q FETCH_HEAD
+          mkdir -p "$RUNNER_TEMP/.release-tools"
+          git init -q "$RUNNER_TEMP/.release-tools"
+          git -C "$RUNNER_TEMP/.release-tools" remote add origin https://github.com/mafhper/github-release-workflows.git
+          git -C "$RUNNER_TEMP/.release-tools" fetch -q --depth 1 origin "${{ github.action_ref || 'main' }}"
+          git -C "$RUNNER_TEMP/.release-tools" checkout -q FETCH_HEAD
 
       - name: Exportar configuração do projeto
-        run: node "${{ github.workspace }}/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
+        run: node "$RUNNER_TEMP/.release-tools/scripts/release-config.mjs" "${{ inputs.config-file }}" --env >> "$GITHUB_ENV"
 
       - name: Montar corpo do release
         id: body
         run: |
-          bash "${{ github.workspace }}/.release-tools/scripts/release-body.sh" "$RUNNER_TEMP/release-body.md"
+          bash "$RUNNER_TEMP/.release-tools/scripts/release-body.sh" "$RUNNER_TEMP/release-body.md"
 
       - name: Publicar o release
         run: |

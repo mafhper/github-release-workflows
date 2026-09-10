@@ -16,14 +16,14 @@ Princípio arquitetural:
 ```yaml
 jobs:
   release:
-    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.3
+    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.4
     permissions:
       contents: write
     with:
       matrix: '[{ "os": "ubuntu-latest" }]'
 ```
 
-Sempre fixe a versão imutável (`@v1.0.3`), nunca `@main`. O Core é tratado como uma API de automação: uma mudança que quebra o contrato deve gerar `v2.0.0`.
+Sempre fixe a versão imutável (`@v1.0.4`), nunca `@main`. O Core é tratado como uma API de automação: uma mudança que quebra o contrato deve gerar `v2.0.0`.
 
 ## Inputs do workflow
 
@@ -47,7 +47,7 @@ prepare ──► build (matrix, fail-fast: false) ──► finalize
 
 ## Fases operacionais
 
-1. **Preparação** — checkout do consumidor (histórico completo) + bootstrap dos scripts do Core referenciados pela mesma versão consumida (`github.action_ref`); o bootstrap usa `git fetch` em `run:`, pois um `actions/checkout` auto-referencial (o próprio repositório do Core) quebra a materialização das actions do arquivo ("not our ref").
+1. **Preparação** — checkout do consumidor (histórico completo) + bootstrap dos scripts do Core (referenciados pela mesma versão consumida, `github.action_ref`) em `$RUNNER_TEMP/.release-tools`, **fora do checkout do consumidor** para não contaminar lint/gates/testes do projeto; o bootstrap usa `git fetch` em `run:`, pois um `actions/checkout` auto-referencial (o próprio repositório do Core) quebra a materialização das actions do arquivo ("not our ref").
 2. **Validação** — barata e determinística, antes de qualquer build: config válida → tag válida → versão válida → versões consistentes → package manager coerente.
 3. **Toolchain** — somente o necessário declarado no contrato (`node`, `bun`, `rust`, `apt`), seguido da instalação das dependências do projeto (`bun install --frozen-lockfile`/`npm ci`).
 4. **Gates / pre / build** — comandos declarativos; o Core não assume Vite, Next, Tauri, npm ou Bun.
