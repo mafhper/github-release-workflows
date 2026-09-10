@@ -16,14 +16,14 @@ Princípio arquitetural:
 ```yaml
 jobs:
   release:
-    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.0
+    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.1
     permissions:
       contents: write
     with:
       matrix: '[{ "os": "ubuntu-latest" }]'
 ```
 
-Sempre fixe a versão imutável (`@v1.0.0`), nunca `@main`. O Core é tratado como uma API de automação: uma mudança que quebra o contrato deve gerar `v2.0.0`.
+Sempre fixe a versão imutável (`@v1.0.1`), nunca `@main`. O Core é tratado como uma API de automação: uma mudança que quebra o contrato deve gerar `v2.0.0`.
 
 ## Inputs do workflow
 

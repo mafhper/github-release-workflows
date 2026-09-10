@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   release:
-    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.0
+    uses: mafhper/github-release-workflows/.github/workflows/release.yml@v1.0.1
     with:
       matrix: '[{"os":"ubuntu-latest"}]'
 ```
@@ -55,7 +55,7 @@ jobs:
 
 ## Como versionar
 
-O Core é uma API de automação. Consumidores fixam versões imutáveis (`@v1.0.0`); `@main` nunca é dependência permanente. Mudança incompatível → `v2.0.0`. Tags publicadas não devem ser movidas.
+O Core é uma API de automação. Consumidores fixam versões imutáveis (`@v1.0.1`); `@main` nunca é dependência permanente. Mudança incompatível → `v2.0.0`. Tags publicadas não devem ser movidas.
 
 ## Suporte
 
