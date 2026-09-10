@@ -1,4 +1,4 @@
-# github-release-workflows
+# Release Core
 
 [![CI](https://github.com/mafhper/github-release-workflows/actions/workflows/ci.yml/badge.svg)](https://github.com/mafhper/github-release-workflows/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/tag/mafhper/github-release-workflows?sort=semver&label=release)](https://github.com/mafhper/github-release-workflows/releases)
