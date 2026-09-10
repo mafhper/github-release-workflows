@@ -226,6 +226,16 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
+      - name: Instalar dependências do projeto
+        if: env.PKG_MANAGER != '' && env.DESKTOP != 'true'
+        working-directory: ${{ env.DESKTOP_PROJECT_PATH }}
+        run: |
+          case "$PKG_MANAGER" in
+            bun) bun install --frozen-lockfile ;;
+            npm) npm ci ;;
+            *) echo "package manager não suportado para instalação de dependências: $PKG_MANAGER"; exit 1 ;;
+          esac
+
       - name: Portões de qualidade
         if: env.GATES != '[]'
         working-directory: ${{ env.DESKTOP_PROJECT_PATH }}
