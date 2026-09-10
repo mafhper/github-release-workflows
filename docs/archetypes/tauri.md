@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   release:
-    uses: mafhper/release-core/.github/workflows/release.yml@v1.0.6
+    uses: mafhper/release-core/.github/workflows/release.yml@v1.1.0
     with:
       matrix: |-
         [
