@@ -1,20 +1,31 @@
 # github-release-workflows
 
-**Release Core** reutilizável para o portfólio `mafhper`: um protocolo de release confiável, idempotente e configurável para projetos **web**, **extensão** e **desktop/Tauri**.
+[![CI](https://github.com/mafhper/github-release-workflows/actions/workflows/ci.yml/badge.svg)](https://github.com/mafhper/github-release-workflows/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/tag/mafhper/github-release-workflows?sort=semver&label=release)](https://github.com/mafhper/github-release-workflows/releases)
+[![Licença](https://img.shields.io/github/license/mafhper/github-release-workflows)](LICENSE)
+
+**Release Core** é um protocolo de release reutilizável para GitHub Actions. Um único workflow — consumido como reusable workflow — entrega releases verificadas, idempotentes e publicadas de forma consistente para aplicações **web**, **extensões de navegador** e **aplicações desktop (Tauri)**, sem duplicar lógica entre repositórios.
 
 > O projeto descreve sua distribuição. O Core executa o protocolo de release.
 
-## Quem usa
+## Problema
 
-- Spread (web)
-- Kaes Keid Inspector (extensão)
-- PersonalNews, push_, Mark-Lee (desktop/Tauri)
+Cada projeto do portfólio pode implementar seu próprio workflow de release: validação de versão ad-hoc, body de release duplicado, ausência de idempotência e de política de imagem. Conhecer o que diferencia os projetos significa padronizar o que é comum e declarar o que é específico.
 
-E qualquer projeto compatível: infraestrutura compartilhada, sem dependência de nomes.
+## Garantias
 
-## Como usar
+- **Validação antes do build** — a tag `vX.Y.Z` é conferida contra `package.json` e `versions.files` (JSON/TOML); qualquer divergência falha antes de iniciar o build.
+- **Coerência do package manager** — `bun`/`npm` exigem evidência de lockfile e declaração consistente em `package.json#packageManager`.
+- **Build declarativo** — toolchain (node/bun/rust/apt), gates, pre-build e comando de build vêm do contrato; o Core não assume framework nem gerente de pacotes.
+- **Artefatos 0..N** — existência, validação executável, rename opcional e upload idempotente (`--clobber`).
+- **Política de imagem como hard gate** — `docs/images/releases/release.webp` representa a linha `major.minor`; nova linha exige mudança da imagem entre tags.
+- **Release idempotente** — rascunho → publicação, com retry; rerun seguro, nunca um `create` cego.
+- **Prerelease automático** — detectado pelo semver da tag (`v1.2.0-beta.1`), sem configuração.
+- **Permissões mínimas** — o Core mantém `contents: write` como teto e nunca eleva o token do caller.
 
-1. Declare o caller em `.github/workflows/release.yml`:
+## Começando
+
+**1. Adicione o caller** em `.github/workflows/release.yml` no projeto consumidor:
 
 ```yaml
 name: Release
@@ -37,39 +48,33 @@ jobs:
       matrix: '[{"os":"ubuntu-latest"}]'
 ```
 
-2. Configure `.github/release.config.json` — [contrato completo](docs/config-schema.md).
+**2. Declare as diferenças** em `.github/release.config.json` — [contrato completo](docs/config-schema.md).
 
-3. Inclua a imagem em `docs/images/releases/release.webp` e as notas em `.github/release-notes/` (granularidade declarada no contrato; documente no `README.md` das notas).
+**3. Forneça os insumos** — a imagem em `docs/images/releases/release.webp` e as notas editoriais em `.github/release-notes/` (granularidade declarada no contrato).
 
-## O que ele faz
+## Tipos de projeto suportados
 
-- Validação da tag contra `package.json` e `versions.files` (json/toml), **antes do build**
-- Coerência obrigatória do gerenciador de pacotes (bun/npm com evidência de lockfile)
-- Toolchain sob demanda (node/bun/rust/apt), gates, pre, build ou `tauri-action`
-- Artefatos 0..N com validação executável, rename opcional e upload idempotente (`--clobber`)
-- Política de imagem como hard gate (`major.minor`; configuravel por tag)
-- Notas editoriais + changelog automático em `<details>`
-- Prerelease detectado por semver
-- Publicação idempotente (rascunho → publica; rerun seguro) e com retry
-- Permissões mínimas: caller concede `contents: write` (token só pode ser rebaixado pelo core, nunca elevado); core mantém `contents: write` como teto
+| Tipo | Artefatos | Perfil |
+|---|---|---|
+| Web | 0 | [arquétipo web](docs/archetypes/web.md) |
+| Extensão | 1 ZIP, renomeado na release | [arquétipo extensão](docs/archetypes/extension.md) |
+| Desktop (Tauri) | 0..N, matrix por plataforma | [arquétipo Tauri](docs/archetypes/tauri.md) |
 
-## Como versionar
+## Como funciona
 
-O Core é uma API de automação. Consumidores fixam versões imutáveis (`@v1.0.1`); `@main` nunca é dependência permanente. Mudança incompatível → `v2.0.0`. Tags publicadas não devem ser movidas.
+```text
+prepare ──► build (matrix, fail-fast: false) ──► finalize
+```
 
-## Suporte
+- **prepare** resolve e valida tag e configuração, calcula `prev_tag`, detecta prerelease e cria o release como rascunho (idempotente).
+- **build** instala a toolchain declarada e executa gates → pre → build (ou `tauri-action`), valida e envia artefatos com `--clobber` e retry.
+- **finalize** remonta o corpo (imagem, título, tagline, notas, seções, changelog automático em `<details>`) e publica o release. Só roda se `prepare` passou e `build` passou ou foi pulado.
 
-- Web (0 artefatos) — [arquétipo](docs/archetypes/web.md)
-- Extensão (1 artefato ZIP) — [arquétipo](docs/archetypes/extension.md)
-- Tauri (N artefatos, matrix por plataforma) — [arquétipo](docs/archetypes/tauri.md)
+O `release.config.json` é a fonte única da verdade do runtime — toolchain, gates, artefatos, imagem e notas. Os únicos inputs do workflow são `matrix`, `config-file` e `tag`. Lógica específica de projeto no Core é proibida: se for necessária, o contrato está incompleto.
 
-### Referências
+## Versionamento
 
-| Documento | Conteúdo |
-|---|---|
-| [release-workflow.md](docs/release-workflow.md) | Arquitetura, fases, operação |
-| [config-schema.md](docs/config-schema.md) | Contrato completo + defaults + regras |
-| [archetypes/](docs/archetypes/) | Perfis web, extensão e Tauri |
+O Core é tratado como uma API de automação. Consumidores fixam versões imutáveis (`@v1.0.1`); `@main` nunca é dependência permanente. Mudança incompatível no contrato gera `v2.0.0`. Tags publicadas não devem ser movidas.
 
 ## Estrutura
 
@@ -94,6 +99,19 @@ tests/
 └── fixtures/{web,extension,tauri}
 ```
 
+## Documentação
+
+| Documento | Conteúdo |
+|---|---|
+| [release-workflow.md](docs/release-workflow.md) | Arquitetura, fases, idempotência, permissões |
+| [config-schema.md](docs/config-schema.md) | Contrato completo, defaults, regras de validação |
+| [archetypes/](docs/archetypes/) | Perfis web, extensão e Tauri |
+
 ## Roadmap
 
-Milestones para o portfólio (ver `.dev`): fundação do Core → CI consistente → rulesets de `main` e tags → Dependabot (Actions/npm) → CodeQL → deploy separado → matrix multiplataforma → repository health checks. Próximos P1 do Core: SHA-256, draft releases (plataformas required/opcional), diagnósticos aprimorados.
+- Milestones do portfólio: regras de proteção de `main` e tags, Dependabot (Actions/npm), CodeQL, deploy separado, matrix multiplataforma, health checks.
+- Próximos itens do Core: checksum SHA-256 dos artefatos, artefatos required/opcionais por plataforma, diagnósticos aprimorados.
+
+## Licença
+
+MIT — veja [LICENSE](LICENSE).
