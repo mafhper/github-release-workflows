@@ -1,5 +1,5 @@
 {
-  "name": "@mafhper/github-release-workflows",
+  "name": "@mafhper/release-core",
   "version": "1.0.4",
   "private": true,
   "description": "Release Core reutilizável e configuravel do portfolio mafhper.",
