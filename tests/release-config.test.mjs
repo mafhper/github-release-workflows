@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
@@ -61,6 +61,24 @@ test("fixture tauri: desktop habilitado com Rust", () => {
   assert.equal(rust.stdout.trim(), "stable");
   const notes = run(FIX("tauri/release.config.json"), ["--get", "notes_granularity"]);
   assert.equal(notes.stdout.trim(), "minor");
+});
+
+test("regressão: config em .github/ resolve paths na raiz do repositório", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rwcfg-"));
+  mkdirSync(join(dir, ".github"), { recursive: true });
+  writeFileSync(
+    join(dir, ".github", "release.config.json"),
+    JSON.stringify({
+      release: { title: "Spread", language: "en" },
+      build: { package_manager: "bun", bun: "1.3.13" },
+    }),
+    "utf8",
+  );
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ packageManager: "bun@1.3.13" }), "utf8");
+  writeFileSync(join(dir, "bun.lock"), "", "utf8");
+  const res = run(join(dir, ".github", "release.config.json"), ["--get", "package_manager"]);
+  assertOk(res);
+  assert.equal(res.stdout.trim(), "bun");
 });
 
 test("defaults aplicados quando omissos", () => {

@@ -28,6 +28,24 @@ function resolveRoot(path) {
   return resolve(baseDir, path);
 }
 
+// Caminhos do contrato ("package.json", lockfiles) são relativos à raiz do
+// repositório consumidor, mas o config vive em .github/. Sobe até o diretório
+// que contém package.json; se não encontrar (ex.: fixtures mínimas), usa o
+// próprio diretório do config.
+function findRepoRoot(configDir) {
+  let dir = configDir;
+  for (;;) {
+    try {
+      readFileSync(resolve(dir, "package.json"), "utf8");
+      return dir;
+    } catch {
+      const parent = dirname(dir);
+      if (parent === dir) return configDir;
+      dir = parent;
+    }
+  }
+}
+
 function fileExists(path) {
   try {
     readFileSync(resolveRoot(path), "utf8");
@@ -85,7 +103,7 @@ function arrayify(value, path, name) {
 }
 
 function load(configPath) {
-  baseDir = dirname(resolve(configPath));
+  baseDir = findRepoRoot(dirname(resolve(configPath)));
   const config = readJson(configPath);
 
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
