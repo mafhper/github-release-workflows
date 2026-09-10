@@ -1,8 +1,8 @@
 {
   "name": "@mafhper/release-core",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "private": true,
-  "description": "Release Core reutilizável e configuravel do portfolio mafhper.",
+  "description": "O protocolo de release reutilizável para GitHub Actions.",
   "scripts": {
     "test": "node --test"
   },
