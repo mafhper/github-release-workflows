@@ -259,6 +259,61 @@ jobs:
         working-directory: ${{ env.DESKTOP_PROJECT_PATH }}
         run: bash -eu -c "$BUILD_COMMAND"
 
+      - name: Definir diretório de cache de ferramentas do bundler (Tauri)
+        if: env.DESKTOP == 'true' && runner.os == 'Windows'
+        run: |
+          echo "TOOLS_CACHE_DIR=$LOCALAPPDATA/cache/tauri" >> "$GITHUB_ENV"
+
+      - name: Restaurar cache de ferramentas do bundler (Tauri)
+        if: env.DESKTOP == 'true' && runner.os == 'Windows'
+        uses: actions/cache/restore@3edfce9056124e459a23f683a21433670d47daca # v6.1.0
+        with:
+          path: ${{ env.TOOLS_CACHE_DIR }}
+          key: tauri-tools-${{ runner.os }}-v2
+
+      - name: Pré-aquecer ferramentas WiX do bundler (MSI)
+        if: env.DESKTOP == 'true' && runner.os == 'Windows'
+        env:
+          WIX_URL: https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
+          WIX_SHA256: 6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31
+        run: |
+          set -euo pipefail
+          wix="$TOOLS_CACHE_DIR/WixTools314"
+          required=(candle.exe light.exe wix.dll WixUIExtension.dll)
+          complete=1
+          for f in "${required[@]}"; do
+            if [ ! -f "$wix/$f" ]; then complete=0; break; fi
+          done
+          if [ "$complete" = "1" ]; then
+            echo "Ferramentas WiX já disponíveis em $wix."
+            exit 0
+          fi
+          mkdir -p "$wix"
+          attempt=1
+          until curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$RUNNER_TEMP/wix.zip" "$WIX_URL" \
+                && echo "$WIX_SHA256  $RUNNER_TEMP/wix.zip" | sha256sum -c - >/dev/null 2>&1; do
+            if [ "$attempt" -ge 3 ]; then
+              echo "::error::Falha ao baixar/verificar o WiX após $attempt tentativas: $WIX_URL"
+              exit 1
+            fi
+            echo "Download do WiX falhou (tentativa $attempt); nova tentativa em 10s..."
+            attempt=$((attempt + 1))
+            sleep 10
+          done
+          if command -v unzip >/dev/null 2>&1; then
+            unzip -qo "$RUNNER_TEMP/wix.zip" -d "$wix"
+          else
+            powershell -NoProfile -Command "Expand-Archive -LiteralPath '$RUNNER_TEMP/wix.zip' -DestinationPath '$wix' -Force"
+          fi
+          rm -f "$RUNNER_TEMP/wix.zip"
+          for f in "${required[@]}"; do
+            if [ ! -f "$wix/$f" ]; then
+              echo "::error::Arquivo WiX ausente após a extração: $f"
+              exit 1
+            fi
+          done
+          echo "Ferramentas WiX pré-aquecidas em $wix."
+
       - name: Compilar e publicar instaladores (Tauri)
         if: env.DESKTOP == 'true'
         env:
@@ -271,6 +326,13 @@ jobs:
           releaseDraft: true
           prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
           args: ${{ matrix.args }}
+
+      - name: Gravar cache de ferramentas do bundler (Tauri)
+        if: env.DESKTOP == 'true' && runner.os == 'Windows' && success()
+        uses: actions/cache/save@3edfce9056124e459a23f683a21433670d47daca # v6.1.0
+        with:
+          path: ${{ env.TOOLS_CACHE_DIR }}
+          key: tauri-tools-${{ runner.os }}-v2
 
       - name: Validar e publicar artefatos
         if: env.DESKTOP != 'true' && env.ARTIFACT_ENABLED == 'true'
