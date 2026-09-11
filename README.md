@@ -47,7 +47,7 @@ concurrency:
 
 jobs:
   release:
-    uses: mafhper/release-core/.github/workflows/release.yml@v1.1.2
+    uses: mafhper/release-core/.github/workflows/release.yml@v1.1.3
     with:
       matrix: '[{"os":"ubuntu-latest"}]'
 ```
@@ -78,7 +78,7 @@ O `release.config.json` é a fonte única da verdade do runtime — toolchain, g
 
 ## Versionamento
 
-O Core é tratado como uma API de automação. Consumidores fixam versões imutáveis (`@v1.1.2`); `@main` nunca é dependência permanente. Mudança incompatível no contrato gera `v2.0.0`. Tags publicadas não devem ser movidas.
+O Core é tratado como uma API de automação. Consumidores fixam versões imutáveis (`@v1.1.3`); `@main` nunca é dependência permanente. Mudança incompatível no contrato gera `v2.0.0`. Tags publicadas não devem ser movidas.
 
 ## Estrutura
 

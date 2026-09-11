@@ -265,11 +265,12 @@ jobs:
           echo "TOOLS_CACHE_DIR=$LOCALAPPDATA/cache/tauri" >> "$GITHUB_ENV"
 
       - name: Restaurar cache de ferramentas do bundler (Tauri)
+        id: cache-restore
         if: env.DESKTOP == 'true' && runner.os == 'Windows'
         uses: actions/cache/restore@3edfce9056124e459a23f683a21433670d47daca # v6.1.0
         with:
           path: ${{ env.TOOLS_CACHE_DIR }}
-          key: tauri-tools-${{ runner.os }}-v2
+          key: tauri-tools-${{ runner.os }}-wix314-v1
 
       - name: Pré-aquecer ferramentas WiX do bundler (MSI)
         if: env.DESKTOP == 'true' && runner.os == 'Windows'
@@ -314,6 +315,13 @@ jobs:
           done
           echo "Ferramentas WiX pré-aquecidas em $wix."
 
+      - name: Gravar cache de ferramentas do bundler (Tauri) logo após pré-aquecimento
+        if: env.DESKTOP == 'true' && runner.os == 'Windows' && steps.cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@3edfce9056124e459a23f683a21433670d47daca # v6.1.0
+        with:
+          path: ${{ env.TOOLS_CACHE_DIR }}
+          key: tauri-tools-${{ runner.os }}-wix314-v1
+
       - name: Compilar e publicar instaladores (Tauri)
         if: env.DESKTOP == 'true'
         env:
@@ -326,13 +334,6 @@ jobs:
           releaseDraft: true
           prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
           args: ${{ matrix.args }}
-
-      - name: Gravar cache de ferramentas do bundler (Tauri)
-        if: env.DESKTOP == 'true' && runner.os == 'Windows' && success()
-        uses: actions/cache/save@3edfce9056124e459a23f683a21433670d47daca # v6.1.0
-        with:
-          path: ${{ env.TOOLS_CACHE_DIR }}
-          key: tauri-tools-${{ runner.os }}-v2
 
       - name: Validar e publicar artefatos
         if: env.DESKTOP != 'true' && env.ARTIFACT_ENABLED == 'true'
