@@ -261,6 +261,8 @@ jobs:
 
       - name: Compilar e publicar instaladores (Tauri)
         if: env.DESKTOP == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         with:
           projectPath: ${{ env.DESKTOP_PROJECT_PATH }}
